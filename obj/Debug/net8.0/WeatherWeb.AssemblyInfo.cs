@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("WeatherWeb")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+94c421580a44846c22d28da2c3dfe71636f8c4b3")]
 [assembly: System.Reflection.AssemblyProductAttribute("WeatherWeb")]
 [assembly: System.Reflection.AssemblyTitleAttribute("WeatherWeb")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
