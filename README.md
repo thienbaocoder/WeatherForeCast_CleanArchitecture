@@ -18,28 +18,7 @@
 
 ## 🧱 Kiến trúc & cấu trúc thư mục
 
-WeatherWeb.sln
-├─ WeatherWeb/ # UI (Blazor Server)
-│ ├─ Pages/
-│ │ ├─ Weather.razor # Trang chính
-│ │ └─ _Host.cshtml # (chứa script geolocation nếu dùng window.weather)
-│ ├─ wwwroot/ # CSS/JS tĩnh
-│ └─ Program.cs / Startup.cs # Khởi tạo DI
-│
-├─ WeatherWeb.Domain/ # Domain (thuần C#)
-│ ├─ Entities/ (Location, WeatherSnapshot, …)
-│ └─ ValueObjects/ (Coordinates, Temperature, WindSpeed, …)
-│
-├─ WeatherWeb.Application/ # Application
-│ ├─ Abstractions/ (IWeatherService)
-│ └─ Features/Weather_DTOs/WeatherViewModel.cs (Current + Hourly + Daily)
-│
-└─ WeatherWeb.Infrastructure/ # Infrastructure
-├─ Weather/
-│ ├─ OpenMeteoModels.cs # Model JSON (current + hourly + daily)
-│ └─ OpenMeteoService.cs # Implement IWeatherService (HttpClientFactory)
-└─ Configuration/DependencyInjection.cs
-
+<img width="333" height="565" alt="image" src="https://github.com/user-attachments/assets/bd29d3ac-57c8-43e5-9616-e6c7e94b3a1e" />
 
 **Luồng dữ liệu:** UI → `IWeatherService` → `OpenMeteoService` → Open-Meteo API → map về `WeatherViewModel` → bind vào UI.
 
