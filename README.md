@@ -67,8 +67,7 @@ dotnet dev-certs https --trust
 
 # build & chạy
 dotnet build
-dotnet watch run --project ./WeatherWeb/WeatherWeb.csproj
-
+dotnet watch run 
 Mở: https://localhost:5001/weather
 
 Khi bấm Dùng GPS, trình duyệt sẽ hỏi quyền vị trí → chọn Allow.
