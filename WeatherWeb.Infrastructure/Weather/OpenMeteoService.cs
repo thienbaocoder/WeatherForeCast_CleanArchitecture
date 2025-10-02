@@ -61,7 +61,7 @@ public sealed class OpenMeteoService : IWeatherService
         var snapshot = new WeatherSnapshot(
             loc,
             new Temperature(cur.Temperature2m),
-            new WindSpeed(cur.WindSpeed10m), // m/s do đã set unit
+            new WindSpeed(cur.WindSpeed10m),
             DateTimeOffset.TryParse(cur.Time, out var t) ? t : DateTimeOffset.UtcNow
         );
 

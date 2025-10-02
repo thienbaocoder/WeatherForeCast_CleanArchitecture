@@ -16,7 +16,8 @@ public static class DependencyInjection
         services.AddHttpClient("OpenMeteo.Api", c => c.BaseAddress = new Uri(openMeteoBase));
         services.AddHttpClient("OpenMeteo.Geocoding", c => c.BaseAddress = new Uri(geocodingBase));
 
-        services.AddScoped<IWeatherService, OpenMeteoService>(); // default provider
+        services.AddScoped<IWeatherService, OpenMeteoService>(); 
+        services.AddScoped<IChatBot, Chat.RuleBasedChatBot>();
         return services;
     }
 }

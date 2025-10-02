@@ -1,166 +1,202 @@
 @page "/weather"
 @layout MainLayout
 @using Microsoft.AspNetCore.Components.Web
+@using WeatherWeb.Application.Features.Weather.DTOs
+@using System.Threading
 @inject WeatherWeb.Application.Abstractions.IWeatherService WeatherService
 @inject Microsoft.JSInterop.IJSRuntime JS
+@implements IAsyncDisposable
 
-<div class="container py-5">
-  <div class="row justify-content-center">
-    <div class="col-lg-8">
-
-      <div class="weather-card p-4 mb-4">
-        <!-- Search -->
-        <div class="search-box mb-4">
-          <input class="form-control search-input" placeholder="Tìm kiếm thành phố..." @bind="query"
-            @bind:event="oninput" @onkeydown="HandleKeyDown">
-          <button class="search-btn" title="Tìm theo tên" @onclick="Search">
-            <i class="fas fa-search"></i>
+<div class="wx-page">
+  <div class="wx-toolbar container">
+    <div class="row align-items-center g-2">
+      <div class="col-12 col-lg-4">
+        <h3 class="m-0 fw-semibold text-white"><i class="fa-solid fa-cloud-sun me-2"></i>Sky Peek</h3>
+      </div>
+      <div class="col-12 col-lg-8">
+        <div class="wx-search">
+          <input class="form-control wx-search-input" placeholder="Tìm kiếm thành phố..." @bind="query"
+            @bind:event="oninput" @onkeydown="HandleKeyDown" />
+          <button class="wx-icon-btn" title="Tìm" @onclick="Search">
+            <i class="fa-solid fa-magnifying-glass"></i>
+          </button>
+          <button class="wx-icon-btn" title="Dùng GPS của tôi" @onclick="UseGps">
+            <i class="fa-solid fa-location-crosshairs"></i>
           </button>
         </div>
-        <div class="d-flex justify-content-end mb-3">
-          <button class="btn btn-sm btn-outline-primary" @onclick="UseGps">
-            <i class="fas fa-location-crosshairs me-1"></i> Dùng GPS của tôi
-          </button>
-        </div>
+      </div>
+    </div>
+  </div>
 
-        @if (loading)
-        {
-          <div>Đang tải...</div>
-        }
-        else if (!string.IsNullOrEmpty(error))
-        {
-          <div class="alert alert-danger">@error</div>
-        }
-        else if (vm is not null)
-        {
-          <!-- Thời tiết hiện tại -->
-          <div class="current-weather p-4 mb-4 text-center">
-            <h2>@vm.LocationName</h2>
-            <div class="d-flex justify-content-center align-items-center">
-              <div class="temp-display me-3">@vm.TemperatureC.ToString("0.#")°C</div>
+  <div class="container pt-3 pb-5">
+    @if (loading)
+    {
+      <div class="text-center text-white-50 py-5">Đang tải…</div>
+    }
+    else if (!string.IsNullOrEmpty(error))
+    {
+      <div class="alert alert-danger">@error</div>
+    }
+    else if (vm is not null)
+    {
+      <div class="row g-4">
+        <div class="col-12 col-lg-4">
+          <div class="panel panel-dark p-4 h-100">
+            <div class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill small bg-dark-2 text-white-50 mb-3">
+              <i class="fa-solid fa-location-dot"></i>
+              <span>@vm.LocationName</span>
+            </div>
+
+            <div class="d-flex align-items-center gap-3 mb-1">
+              <div class="display-temp">@vm.TemperatureC.ToString("0.#")°C</div>
               <div>
-                <div class="weather-icon">
-                  <i class="@GetIconCss(vm.WeatherCode)"></i>
-                </div>
-                <div>@(vm.Condition ?? "—")</div>
+                <div class="big-icon"><i class="@GetIconCss(vm.WeatherCode)"></i></div>
+                <div class="text-white-50">@vm.Condition</div>
               </div>
             </div>
-            <div class="row mt-3">
-              <div class="col-md-4">
-                <div class="d-flex align-items-center justify-content-center">
-                  <i class="fas fa-wind me-2"></i>
-                  <span>@vm.WindSpeed.ToString("0.#") m/s</span>
+
+            <div class="d-flex flex-wrap gap-3 text-white-50 small mb-3">
+              <div><i class="fa-solid fa-wind me-1"></i>@vm.WindSpeed.ToString("0.#") m/s</div>
+              <div><i class="fa-solid fa-location-crosshairs me-1"></i>(@vm.Latitude.ToString("0.###"),
+                @vm.Longitude.ToString("0.###"))</div>
+              <div><i class="fa-regular fa-clock me-1"></i>@vm.ObservedAt</div>
+            </div>
+
+            <div class="row g-3">
+              <div class="col-6">
+                <div class="tile">
+                  <div class="tile-title"><i class="fa-solid fa-temperature-low me-2"></i>Cảm giác như</div>
+                  <div class="tile-value">@((vm.FeelsLikeC is double f ? $"{f:0.#}°C" : "—"))</div>
                 </div>
               </div>
-              <div class="col-md-4">
-                <div class="d-flex align-items-center justify-content-center">
-                  <i class="fas fa-map-marker-alt me-2"></i>
-                  <span>(@vm.Latitude.ToString("0.###"), @vm.Longitude.ToString("0.###"))</span>
+              <div class="col-6">
+                <div class="tile">
+                  <div class="tile-title"><i class="fa-solid fa-cloud me-2"></i>Mây che phủ</div>
+                  <div class="tile-value">@((vm.CloudCoverPercent is int c ? $"{c}%" : "—"))</div>
                 </div>
               </div>
-              <div class="col-md-4">
-                <div class="d-flex align-items-center justify-content-center">
-                  <i class="fas fa-clock me-2"></i>
-                  <span>@vm.ObservedAt</span>
+              <div class="col-6">
+                <div class="tile">
+                  <div class="tile-title"><i class="fa-solid fa-wind me-2"></i>Gió</div>
+                  <div class="tile-value">@vm.WindSpeed.ToString("0.#") m/s</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="tile">
+                  <div class="tile-title"><i class="fa-regular fa-eye me-2"></i>Tầm nhìn</div>
+                  <div class="tile-value">@((vm.VisibilityKm is double v ? $"{v:0.#} km" : "—"))</div>
+                </div>
+              </div>
+              <div class="col-12">
+                <div class="tile">
+                  <div class="tile-title"><i class="fa-solid fa-gauge-high me-2"></i>Áp suất</div>
+                  <div class="tile-value">@((vm.PressureHpa is double p ? $"{p:0} hPa" : "—"))</div>
                 </div>
               </div>
             </div>
           </div>
+        </div>
 
-          <!-- Dự báo theo giờ -->
-          <h4 class="mb-3">Dự báo theo giờ</h4>
-          <div class="hourly-forecast mb-4">
+        <div class="col-12 col-lg-8">
+          <div class="panel panel-dark p-4 mb-4">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+              <div class="panel-header m-0">DỰ BÁO HÔM NAY</div>
+              <div class="btn-group btn-group-sm" role="group">
+                <input type="radio" class="btn-check" id="metTemp" checked="@(@metric == ChartMetric.Temp)"
+                  @onchange="() => ChangeMetric(ChartMetric.Temp)">
+                <label class="btn btn-outline-info" for="metTemp"><i class="fa-solid fa-temperature-half me-1"></i>Nhiệt
+                  độ</label>
+
+                <input type="radio" class="btn-check" id="metRain" checked="@(@metric == ChartMetric.Rain)"
+                  @onchange="() => ChangeMetric(ChartMetric.Rain)">
+                <label class="btn btn-outline-info" for="metRain"><i class="fa-solid fa-cloud-rain me-1"></i>Mưa %</label>
+
+                <input type="radio" class="btn-check" id="metWind" checked="@(@metric == ChartMetric.Wind)"
+                  @onchange="() => ChangeMetric(ChartMetric.Wind)">
+                <label class="btn btn-outline-info" for="metWind"><i class="fa-solid fa-wind me-1"></i>Gió</label>
+              </div>
+            </div>
+
             @if (vm.Hourly?.Count > 0)
             {
-              @foreach (var h in vm.Hourly)
-              {
-                <div class="hourly-item">
-                  <div>@h.Time.ToLocalTime().ToString("HH:mm")</div>
-                  <div class="weather-icon"><i class="@GetIconCss(h.WeatherCode)"></i></div>
-                  <div>@h.TempC.ToString("0.#")°C</div>
+              <div class="chart-wrap mt-3">
+                <svg class="chart" viewBox="0 0 600 220" preserveAspectRatio="none">
+                  <path d="M0 200 H600" class="grid" />
+                  <path d="M0 150 H600" class="grid" />
+                  <path d="M0 100 H600" class="grid" />
+                  <path d="M0 50 H600" class="grid" />
+                  <path id="tempLine" d="@chartPath" class="line" />
+                </svg>
+                <div class="axis-x">
+                  @foreach (var label in xLabels)
+                  {
+                    <span>@label</span>
+                  }
                 </div>
-              }
+              </div>
             }
             else
             {
-              <div class="text-muted">Không có dữ liệu theo giờ.</div>
+              <div class="text-white-50 mt-3">Không có dữ liệu theo giờ.</div>
             }
           </div>
 
-
-          <!-- Dự báo 7 ngày -->
-          <h4 class="mb-3">Dự báo 7 ngày</h4>
-          <div class="daily-forecast">
-            @if (vm.Daily?.Count > 0)
+          <div class="panel panel-dark p-4 mb-4">
+            <div class="panel-header">GỢI Ý RA NGOÀI (12 GIỜ TỚI)</div>
+            @if (vm?.Hourly is not null)
             {
-              @foreach (var d in vm.Daily)
+              var slots = BestWindows(vm.Hourly);
+              if (slots.Count == 0)
               {
-                <div class="daily-item d-flex justify-content-between align-items-center">
-                  <div class="day">@DayLabel(d.Date)</div>
-                  <div class="weather-icon"><i class="@GetIconCss(d.WeatherCode)"></i></div>
-                  <div class="temps">
-                    <span class="max-temp">@d.MaxC.ToString("0.#")°C</span> /
-                    <span class="min-temp">@d.MinC.ToString("0.#")°C</span>
-                  </div>
+                <div class="text-white-50">Không tìm được khung giờ phù hợp.</div>
+              }
+              else
+              {
+                <div class="d-flex flex-wrap gap-1 mt-2">
+                  @foreach (var s in slots)
+                  {
+                    <div class="badge bg-dark border border-info-subtle p-3 text-start" style="min-width:230px">
+                      <div class="fw-semibold">@s.Start.ToLocalTime().ToString("HH:mm") – @s.End.ToLocalTime().ToString("HH:mm")
+                      </div>
+                      <div class="small text-white-50">
+                        Điểm @s.Score.ToString("0")/100 • Mưa ~@s.Rain% • @s.Temp.ToString("0.#")°C • Gió
+                        @s.Wind.ToString("0.#") m/s
+                      </div>
+                    </div>
+                  }
                 </div>
               }
             }
-            else
-            {
-              <div class="text-muted">Không có dữ liệu 7 ngày.</div>
-            }
           </div>
 
-          <!-- Thông tin thời tiết khác -->
-          <div class="weather-card p-4 mt-4">
-            <h4 class="mb-3">Thông tin thời tiết khác</h4>
-            <div class="row">
-              <div class="col-md-6 mb-3">
-                <div class="d-flex align-items-center">
-                  <i class="fas fa-eye me-3"></i>
-                  <div>
-                    <div class="small text-muted">Tầm nhìn</div>
-                    <div class="fw-bold">@((vm.VisibilityKm is double v ? $"{v:0.#} km" : "—"))</div>
+          <div class="panel panel-dark p-4">
+            <div class="panel-header">DỰ BÁO 7 NGÀY</div>
+            <div class="d-flex flex-wrap gap-3">
+              @if (vm.Daily?.Count > 0)
+              {
+                @foreach (var d in vm.Daily)
+                {
+                  <div class="day-card">
+                    <div class="day-name">@DayLabel(d.Date)</div>
+                    <div class="day-icon"><i class="@GetIconCss(d.WeatherCode)"></i></div>
+                    <div class="day-temp">@d.MaxC.ToString("0.#")°C</div>
+                    <div class="day-sub">@d.MinC.ToString("0.#")°C</div>
                   </div>
-                </div>
-              </div>
-              <div class="col-md-6 mb-3">
-                <div class="d-flex align-items-center">
-                  <i class="fas fa-cloud me-3"></i>
-                  <div>
-                    <div class="small text-muted">Mây che phủ</div>
-                    <div class="fw-bold">@((vm.CloudCoverPercent is int c ? $"{c}%" : "—"))</div>
-                  </div>
-                </div>
-              </div>
-              <div class="col-md-6 mb-3">
-                <div class="d-flex align-items-center">
-                  <i class="fas fa-temperature-low me-3"></i>
-                  <div>
-                    <div class="small text-muted">Cảm giác như</div>
-                    <div class="fw-bold">@((vm.FeelsLikeC is double f ? $"{f:0.#}°C" : "—"))</div>
-                  </div>
-                </div>
-              </div>
-              <div class="col-md-6 mb-3">
-                <div class="d-flex align-items-center">
-                  <i class="fas fa-compress-alt me-3"></i>
-                  <div>
-                    <div class="small text-muted">Áp suất</div>
-                    <div class="fw-bold">@((vm.PressureHpa is double p ? $"{p:0} hPa" : "—"))</div>
-                  </div>
-                </div>
-              </div>
+                }
+              }
+              else
+              {
+                <div class="text-white-50">Không có dữ liệu 7 ngày.</div>
+              }
             </div>
           </div>
-        }
-        else
-        {
-          <div class="text-muted">Nhập tên thành phố để xem thời tiết.</div>
-        }
+        </div>
       </div>
-
-    </div>
+    }
+    else
+    {
+      <div class="text-center text-white-50 py-5">Nhập tên thành phố để xem thời tiết.</div>
+    }
   </div>
 </div>
 
@@ -168,27 +204,54 @@
   string query = "Ho Chi Minh";
   bool loading;
   string? error;
-  WeatherWeb.Application.Features.Weather.DTOs.WeatherViewModel? vm;
-  private static string DayLabel(DateTimeOffset d)
+  WeatherViewModel? vm;
+
+  // Chart state
+  string chartPath = "";
+  string[] xLabels = Array.Empty<string>();
+  enum ChartMetric { Temp, Rain, Wind }
+  ChartMetric metric = ChartMetric.Temp;
+
+  private System.Threading.PeriodicTimer? _timer;
+  private CancellationTokenSource? _cts;
+  DateTimeOffset? _lastRainAlertAt;
+
+  protected override async Task OnInitializedAsync()
   {
-    var local = d.ToLocalTime().Date;
-    var today = DateTime.Today;
-
-    if (local == today) return "Hôm nay";
-    if (local == today.AddDays(1)) return "Ngày mai";
-
-    return local.DayOfWeek switch
-    {
-      DayOfWeek.Monday => "Thứ 2",
-      DayOfWeek.Tuesday => "Thứ 3",
-      DayOfWeek.Wednesday => "Thứ 4",
-      DayOfWeek.Thursday => "Thứ 5",
-      DayOfWeek.Friday => "Thứ 6",
-      DayOfWeek.Saturday => "Thứ 7",
-      DayOfWeek.Sunday => "Chủ nhật",
-      _ => local.ToString("dd/MM")
-    };
+    await Search();
+    StartAutoRefresh(TimeSpan.FromMinutes(2));
   }
+
+  void StartAutoRefresh(TimeSpan interval)
+  {
+    _cts = new();
+    _timer = new(interval);
+    _ = Task.Run(async () =>
+    {
+      try
+      {
+        while (await _timer!.WaitForNextTickAsync(_cts.Token))
+        {
+          await InvokeAsync(async () =>
+      {
+      await RefreshSameLocation();
+      CheckRainAlert();
+      await AnimateLine();
+      StateHasChanged();
+    });
+        }
+      }
+      catch (OperationCanceledException) { }
+    });
+  }
+
+  public async ValueTask DisposeAsync()
+  {
+    _cts?.Cancel();
+    _timer?.Dispose();
+    await Task.CompletedTask;
+  }
+
   async Task Search()
   {
     loading = true; error = null; vm = null;
@@ -196,6 +259,9 @@
     {
       vm = await WeatherService.GetCurrentAsync(query);
       if (vm is null) error = "Không tìm thấy dữ liệu.";
+      BuildChart(vm);
+      CheckRainAlert();
+      await AnimateLine();
     }
     catch (Exception ex) { error = ex.Message; }
     finally { loading = false; }
@@ -210,36 +276,185 @@
       var pos = await JS.InvokeAsync<GeoPos>("weather.getCurrentPosition");
       vm = await WeatherService.GetCurrentByCoordinatesAsync(pos.Latitude, pos.Longitude);
       if (vm is null) error = "Không lấy được dữ liệu theo GPS.";
+      BuildChart(vm);
+      CheckRainAlert();
+      await AnimateLine();
     }
-    catch (Exception ex)
-    {
-      error = ex.Message;
-    }
-    finally
-    {
-      loading = false;
-    }
+    catch (Exception ex) { error = ex.Message; }
+    finally { loading = false; }
+  }
+
+  async Task RefreshSameLocation()
+  {
+    if (vm is null) return;
+    if (vm.Latitude != 0 && vm.Longitude != 0)
+      vm = await WeatherService.GetCurrentByCoordinatesAsync(vm.Latitude, vm.Longitude);
+    else
+      vm = await WeatherService.GetCurrentAsync(query);
+
+    BuildChart(vm);
   }
 
   async Task HandleKeyDown(KeyboardEventArgs e)
   {
     if (e.Key == "Enter") await Search();
   }
+  void ChangeMetric(ChartMetric m)
+  {
+    metric = m;
+    BuildChart(vm);
+    _ = AnimateLine();
+  }
+
+  void BuildChart(WeatherViewModel? data)
+  {
+    if (data?.Hourly is null || data.Hourly.Count == 0)
+    {
+      chartPath = "";
+      xLabels = Array.Empty<string>();
+      return;
+    }
+    Func<HourlyForecastItem, double?> pick = metric switch
+    {
+      ChartMetric.Rain => h => h.PrecipProb is null ? (double?)null : Convert.ToDouble(h.PrecipProb),
+      ChartMetric.Wind => h => (vm?.WindSpeed ?? 0) + Math.Sin(h.Time.Hour) * 0.05,
+      _ => h => h.TempC
+    };
+
+    BuildChart(data.Hourly, pick, out chartPath, out xLabels);
+  }
+
+  void BuildChart(
+  IReadOnlyList<HourlyForecastItem> items,
+  Func<HourlyForecastItem, double?> pick,
+  out string path, out string[] labels)
+  {
+    path = "";
+    labels = Array.Empty<string>();
+    var now = DateTimeOffset.Now;
+
+    var points = items.Where(h => h.Time >= now).Take(12).ToList();
+    if (points.Count < 2) points = items.Take(12).ToList();
+    if (points.Count < 2) return;
+
+    var vals = points.Select(pick).Where(v => v.HasValue).Select(v => v!.Value).ToList();
+    if (vals.Count < 2) return;
+
+    double minV = vals.Min(), maxV = vals.Max();
+    if (metric == ChartMetric.Rain) { minV = Math.Min(0, minV); maxV = Math.Max(100, maxV); }
+    if (Math.Abs(maxV - minV) < 0.1) { maxV += 1; minV -= 1; }
+
+    double W = 600, H = 200, pad = 10;
+    double range = (maxV - minV);
+    double ScaleY(double v) => H - pad - ((v - minV) / range) * (H - 2 * pad);
+    double stepX = W / Math.Max(1, points.Count - 1);
+
+    var sb = new System.Text.StringBuilder();
+    for (int i = 0; i < points.Count; i++)
+    {
+      var x = i * stepX;
+      var y = ScaleY(pick(points[i]) ?? minV);
+      sb.Append(i == 0 ? $"M{x:0},{y:0}" : $" L{x:0},{y:0}");
+    }
+    path = sb.ToString();
+
+    var labs = new List<string>();
+    int ticks = Math.Min(6, points.Count);
+    for (int i = 0; i < ticks; i++)
+    {
+      int idx = (int)Math.Round(i * (points.Count - 1) / (double)(ticks - 1));
+      labs.Add(points[idx].Time.ToLocalTime().ToString("H:mm"));
+    }
+    labels = labs.ToArray();
+  }
+
+  async Task AnimateLine()
+  {
+    await Task.Yield();
+    await JS.InvokeVoidAsync("chart.animatePath", "#tempLine");
+  }
+  public record Slot(DateTimeOffset Start, DateTimeOffset End, double Score, int Rain, double Temp, double Wind);
+
+  List<Slot> BestWindows(IReadOnlyList<HourlyForecastItem> items)
+  {
+    var now = DateTimeOffset.Now;
+    var next = items.Where(h => h.Time >= now).Take(12).ToList();
+    var result = new List<Slot>();
+    if (next.Count < 2) return result;
+
+    var windNow = vm?.WindSpeed ?? 0;
+
+    for (int i = 0; i < next.Count - 1; i++)
+    {
+      var a = next[i]; var b = next[i + 1];
+
+      double rain = (Convert.ToDouble(a.PrecipProb ?? 0) + Convert.ToDouble(b.PrecipProb ?? 0)) / 2.0; // %
+      double temp = (a.TempC + b.TempC) / 2.0; // °C
+      double wind = windNow; // m/s
+
+      double rainScore = 100 - rain;
+      double tempScore = 100 - Math.Min(100, Math.Abs(temp - 26) * 5);
+      double windScore = 100 - Math.Min(100, wind * 8);
+      double score = rainScore * .6 + tempScore * .3 + windScore * .1;
+
+      result.Add(new Slot(a.Time, b.Time, score, (int)Math.Round(rain), temp, wind));
+    }
+
+    return result.OrderByDescending(s => s.Score).Take(3).ToList();
+  }
+
+  void CheckRainAlert()
+  {
+    if (vm?.Hourly is null) return;
+
+    var now = DateTimeOffset.Now;
+    var next2h = vm.Hourly.Where(h => h.Time >= now && h.Time <= now.AddHours(2)).ToList();
+    if (next2h.Count == 0) return;
+
+    int maxProb = next2h.Max(h => (int)Math.Round(Convert.ToDouble(h.PrecipProb ?? 0)));
+    if (maxProb >= 70)
+    {
+      if (_lastRainAlertAt is null || (DateTimeOffset.Now - _lastRainAlertAt) > TimeSpan.FromMinutes(30))
+      {
+        _lastRainAlertAt = DateTimeOffset.Now;
+        var msg = $"Có khả năng mưa cao (~{maxProb}%) trong 2 giờ tới.";
+        try { JS.InvokeVoidAsync("toast", msg); } catch { }
+        try { JS.InvokeVoidAsync("notify.show", "SkyPeek • Cảnh báo mưa", msg); } catch { }
+      }
+    }
+  }
+
+  private static string DayLabel(DateTimeOffset d)
+  {
+    var local = d.ToLocalTime().Date;
+    var today = DateTime.Today;
+    if (local == today) return "Hôm nay";
+    if (local == today.AddDays(1)) return "Ngày mai";
+    return local.DayOfWeek switch
+    {
+      DayOfWeek.Monday => "Thứ 2",
+      DayOfWeek.Tuesday => "Thứ 3",
+      DayOfWeek.Wednesday => "Thứ 4",
+      DayOfWeek.Thursday => "Thứ 5",
+      DayOfWeek.Friday => "Thứ 6",
+      DayOfWeek.Saturday => "Thứ 7",
+      DayOfWeek.Sunday => "Chủ nhật",
+      _ => local.ToString("dd/MM")
+    };
+  }
 
   string GetIconCss(int? code) => code switch
   {
-    0 => "fas fa-sun",
-    1 or 2 => "fas fa-cloud-sun",
-    3 => "fas fa-cloud",
-    45 or 48 => "fas fa-smog",
-    51 or 53 or 55 or 56 or 57 => "fas fa-cloud-meatball",
-    61 or 63 or 65 => "fas fa-cloud-rain",
-    71 or 73 or 75 => "fas fa-snowflake",
-    80 or 81 or 82 => "fas fa-cloud-showers-heavy",
-    95 or 96 or 99 => "fas fa-bolt",
-    _ => "fas fa-cloud"
+    0 => "fa-solid fa-sun",
+    1 or 2 => "fa-solid fa-cloud-sun",
+    3 => "fa-solid fa-cloud",
+    45 or 48 => "fa-solid fa-smog",
+    51 or 53 or 55 or 56 or 57 => "fa-solid fa-cloud-meatball",
+    61 or 63 or 65 => "fa-solid fa-cloud-rain",
+    71 or 73 or 75 => "fa-solid fa-snowflake",
+    80 or 81 or 82 => "fa-solid fa-cloud-showers-heavy",
+    95 or 96 or 99 => "fa-solid fa-bolt",
+    _ => "fa-solid fa-cloud"
   };
-
-  protected override async Task OnInitializedAsync() => await Search();
   public record GeoPos(double Latitude, double Longitude);
 }

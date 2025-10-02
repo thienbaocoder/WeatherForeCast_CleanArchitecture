@@ -1,15 +1,24 @@
 ﻿@inherits LayoutComponentBase
 
-<div class="sidebar">
-    <NavMenu />
-</div>
+<header class="skypeek-navbar navbar navbar-expand-lg navbar-dark fixed-top shadow-sm">
+    <div class="container">
+        <a class="navbar-brand fw-semibold d-flex align-items-center" href="/">
+            <i class="fa-solid fa-cloud-sun me-2"></i> SkyPeek
+        </a>
 
-<div class="main">
-    <div class="top-row px-4">
-        <a href="https://docs.microsoft.com/aspnet/" target="_blank">About</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#topNav"
+            aria-controls="topNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="topNav">
+            <NavMenu />
+        </div>
     </div>
+</header>
 
-    <div class="content px-4">
+<main class="skypeek-main">
+    <div class="container px-3 px-md-4">
         @Body
     </div>
-</div>
+</main>

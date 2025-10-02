@@ -1,0 +1,114 @@
+@page "/chat"
+@using WeatherWeb.Application.Features.Chat.DTOs
+@layout MainLayout
+@inject WeatherWeb.Application.Abstractions.IChatBot Bot
+@inject Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage.ProtectedLocalStorage LocalStorage
+@inject Microsoft.JSInterop.IJSRuntime JS
+
+<h3 class="mb-3">🤖 Hỏi thời tiết</h3>
+
+<div class="card mb-3">
+    <div class="card-body" style="max-height:420px; overflow:auto">
+        @if (messages.Count == 0)
+        {
+            <div class="text-muted">
+                Ví dụ: <code>Hôm nay ở Đà Lạt có mưa không?</code> • <code>Có nên ra ngoài lúc này không?</code> •
+                <code>Ngày mai ở Hà Nội thế nào?</code>
+            </div>
+        }
+        else
+        {
+            @foreach (var m in messages)
+            {
+                <div class="mb-2">
+                    <span class="badge bg-secondary">@m.Role</span>
+                    <div>@((MarkupString)m.Content)</div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+<div class="input-group">
+    <input class="form-control" placeholder="Nhập câu hỏi..." @bind="input" @bind:event="oninput"
+        @onkeydown="OnKeyDown" />
+    <button class="btn btn-primary" @onclick="Send">Gửi</button>
+    <button class="btn btn-outline-secondary" title="Dùng GPS" @onclick="UseGps">
+        <i class="fas fa-location-crosshairs"></i>
+    </button>
+</div>
+
+@code {
+    private string input = string.Empty;
+    private readonly List<Msg> messages = new();
+
+    private string? lastCity;
+    private double? lat;
+    private double? lon;
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        try
+        {
+            var last = await LocalStorage.GetAsync<string>("last-city");
+            if (last.Success && !string.IsNullOrWhiteSpace(last.Value))
+                lastCity = last.Value;
+        }
+        catch
+        {
+            // bỏ qua nếu người dùng chặn storage hoặc trình duyệt cũ
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task Send()
+    {
+        if (string.IsNullOrWhiteSpace(input)) return;
+
+        var user = input.Trim();
+        messages.Add(new("Bạn", System.Net.WebUtility.HtmlEncode(user)));
+        input = string.Empty;
+
+        var ctx = new ChatContext
+        {
+            LastCity = lastCity,
+            Latitude = lat,
+            Longitude = lon
+        };
+
+        var reply = await Bot.AskAsync(user, ctx);
+
+        if (!string.IsNullOrWhiteSpace(reply.CityUsed) && reply.CityUsed != "Vị trí hiện tại")
+        {
+            lastCity = reply.CityUsed;
+            try { await LocalStorage.SetAsync("last-city", lastCity); } catch { }
+        }
+
+        messages.Add(new("Bot", reply.Text));
+        StateHasChanged();
+    }
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+            await Send();
+    }
+    private async Task UseGps()
+    {
+        try
+        {
+            var pos = await JS.InvokeAsync<GeoPos>("weather.getCurrentPosition");
+            lat = pos.latitude; lon = pos.longitude;
+            messages.Add(new("Bot", "Đã bật GPS. Bạn có thể hỏi: <i>“Bây giờ có mưa không?”</i>"));
+        }
+        catch
+        {
+            messages.Add(new("Bot", "Không truy cập được GPS. Hãy cấp quyền vị trí hoặc hỏi kèm tên thành phố."));
+        }
+        StateHasChanged();
+    }
+
+    private record Msg(string Role, string Content);
+    private record GeoPos(double latitude, double longitude);
+}
